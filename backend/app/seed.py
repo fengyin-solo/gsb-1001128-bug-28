@@ -651,5 +651,12 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
   '供应商': '养护材料样例3',
   '进场日期': '2026-09-03',
   '存放地点': '养护材料样例3',
-  '材料状态': '养护材料样例3'}]
+  '材料状态': '养护材料样例3'}],
 }
+
+# 绿化区域切片发布域：版本指针、审定附件、切片/任务/地图引用与地图待办都在这里补齐，
+# 同时把通用占位的 green 三行补成带版本键的真实样例（列表页、详情页、地图入口同源）。
+from app.services.green_publish_seed import build_green_publish_seed, enrich_green_rows  # noqa: E402
+
+SEED_ROWS.update(build_green_publish_seed())
+enrich_green_rows(SEED_ROWS["green"])

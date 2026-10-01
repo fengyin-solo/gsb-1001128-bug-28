@@ -3,10 +3,11 @@
     <header class="page-head">
       <div>
         <h2>绿化管养管理</h2>
-        <p class="page-desc">维护绿化区域，围绕区域编号、区域名称、植物品种、面积做登记、筛选与状态流转。</p>
+        <p class="page-desc">维护绿化区域，围绕区域编号、区域名称、植物品种、面积做登记、筛选与状态流转；版本键与详情页、地图入口同源。</p>
       </div>
       <div class="page-actions">
         <button class="btn primary" type="button" @click="openCreate">登记绿化区域</button>
+        <RouterLink class="btn" to="/green/map">地图入口</RouterLink>
         <button class="btn" type="button" @click="exportRows">导出绿化管养清单</button>
       </div>
     </header>
@@ -31,13 +32,19 @@
       <thead>
         <tr>
           <th v-for="column in columns" :key="column">{{ column }}</th>
+          <th>区域版本</th>
+          <th>发布结论</th>
           <th>可执行动作</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="row in rows" :key="String(row.id)">
           <td v-for="column in columns" :key="column">{{ row[column] ?? '—' }}</td>
+          <td><span class="version-key">{{ row['版本键'] ?? '—' }}</span></td>
+          <td class="conclusion-cell">{{ row['发布结论'] ?? '—' }}</td>
           <td class="row-actions">
+            <RouterLink class="link" :to="`/green/regions/${row['区域编号']}`">详情</RouterLink>
+            <button class="link primary-link" type="button" @click="openWizard(String(row['区域编号']))">区域切片发布</button>
             <button
               v-for="action in actions"
               :key="action"
@@ -50,7 +57,7 @@
           </td>
         </tr>
         <tr v-if="!rows.length">
-          <td :colspan="columns.length + 1" class="empty-state">暂无绿化管养数据，可先登记绿化区域</td>
+          <td :colspan="columns.length + 3" class="empty-state">暂无绿化管养数据，可先登记绿化区域</td>
         </tr>
       </tbody>
     </table>
@@ -59,6 +66,8 @@
       <span>共 {{ total }} 条绿化管养记录</span>
       <span v-if="errorMessage" class="error-text">{{ errorMessage }}</span>
     </footer>
+
+    <PublishWizard v-if="wizardRegion" :region-code="wizardRegion" @close="wizardRegion = ''" @changed="reload" />
   </section>
 </template>
 
@@ -66,6 +75,7 @@
 import { onMounted, ref } from 'vue'
 
 import { request } from '@/api/client'
+import PublishWizard from './PublishWizard.vue'
 
 type Row = Record<string, string | number | null>
 
@@ -80,6 +90,7 @@ const total = ref(0)
 const errorMessage = ref('')
 const filters = ref<Record<string, string>>({})
 const filterFields = columns.slice(0, 3)
+const wizardRegion = ref('')
 
 function resetFilters() {
   filters.value = {}
@@ -92,6 +103,11 @@ function exportRows() {
 
 function openCreate() {
   errorMessage.value = '绿化区域登记入口尚未接入审批流'
+}
+
+function openWizard(regionCode: string) {
+  errorMessage.value = ''
+  wizardRegion.value = regionCode
 }
 
 async function runAction(action: string, row: Row) {
@@ -128,3 +144,10 @@ async function reload() {
 
 onMounted(reload)
 </script>
+
+<style scoped>
+.page-actions { display: flex; gap: 8px; }
+.version-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #eff6ff; color: #1d4ed8; border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.conclusion-cell { max-width: 260px; font-size: 12px; color: var(--muted); }
+.primary-link { font-weight: 600; }
+</style>

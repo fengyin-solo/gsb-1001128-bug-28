@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.store import store
+from app.services.green_publish import green_publish_service
 
 MODULE = "green"
 REQUIRED_FIELDS = ["区域编号", "区域名称", "植物品种"]
@@ -28,10 +29,15 @@ class GreenService:
             rows = [row for row in rows if row.get("status") == status]
         total = len(rows)
         start = max(page - 1, 0) * size
-        return rows[start:start + size], total
+        page_rows = rows[start:start + size]
+        # 列表页、详情页、地图入口共用版本指针，避免区域版本错位
+        return [green_publish_service.decorate_ledger_row(dict(row)) for row in page_rows], total
 
     def get_entry(self, entry_id: int) -> dict[str, Any] | None:
-        return store.find(MODULE, entry_id)
+        entry = store.find(MODULE, entry_id)
+        if entry is None:
+            return None
+        return green_publish_service.decorate_ledger_row(dict(entry))
 
     def create_entry(self, values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
         missing = [field for field in REQUIRED_FIELDS if not str(values.get(field) or "").strip()]

@@ -10,6 +10,8 @@ const Tunnel = () => import('@/views/tunnel/index.vue')
 const TrafficFacility = () => import('@/views/traffic_facility/index.vue')
 const Drainage = () => import('@/views/drainage/index.vue')
 const Green = () => import('@/views/green/index.vue')
+const GreenRegionDetail = () => import('@/views/green/RegionDetail.vue')
+const GreenMap = () => import('@/views/green/MapView.vue')
 const Lighting = () => import('@/views/lighting/index.vue')
 const Winter = () => import('@/views/winter/index.vue')
 const Flood = () => import('@/views/flood/index.vue')
@@ -33,6 +35,8 @@ const router = createRouter({
     { path: '/traffic_facility', name: 'traffic_facility', component: TrafficFacility },
     { path: '/drainage', name: 'drainage', component: Drainage },
     { path: '/green', name: 'green', component: Green },
+    { path: '/green/map', name: 'green-map', component: GreenMap },
+    { path: '/green/regions/:regionCode', name: 'green-region-detail', component: GreenRegionDetail },
     { path: '/lighting', name: 'lighting', component: Lighting },
     { path: '/winter', name: 'winter', component: Winter },
     { path: '/flood', name: 'flood', component: Flood },
