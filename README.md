@@ -74,3 +74,51 @@ npm run dev
   `backend/app/routers/<模块>.py`，业务规则在 `backend/app/services/<模块>.py`。
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
+
+## 绿化区域切片发布单
+
+绿化边界文件确认后，为避免地图切片、班组工作面/排班卡仍落在旧区域、以及撤回后留下
+重复作业，绿化区域的版本发布统一收进「区域切片发布单」
+（`backend/app/services/green_release.py`）。列表页、详情页（`views/green/detail.vue`）
+与地图入口（`views/green/map.vue`）只读发布单回写后的同一份口径，从三个入口复现的
+版本结论保持一致。
+
+发布单向推进，不能跳级：
+
+```
+待审定 ──确认审定附件──▶ 待核对责任 ──核对切片责任──▶ 待发布 ──执行发布──▶ 已发布
+```
+
+- 未确认正式审定附件不能切片，更不会生成班组任务；
+- 绿线与临时围挡冲突时以正式审定附件为准（围挡段扣掉与正式段重叠的余量），
+  历史修剪区间随切片继承保留；
+- 存量重叠区迁移前先按责任关系拆分：换班组的重叠段记「拆分责任后迁移」，
+  同班组的记「顺延接管」；
+- 执行发布时，地图切片、班组任务（工作面＋排班卡）、地图引用（地图待办）
+  逐片在同一事务内落库，任一步失败整批回滚并复位整张旧图（`store.transaction`）；
+- 发布键为 `区域编号@版本`，并发发布按版本键加锁、只生效一次（`store.key_lock`），
+  重复提交直接返回既有发布结论，不重复生成任务；
+- 连接断开后按发布单上的断点游标从未发布切片继续；最终未成功时游标归零、
+  已落库半成品下线，旧图恢复；
+- 撤回发布级联下线本单切片/任务/待办，恢复旧版本切片与责任，不留重复作业。
+
+主要接口：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/green/release/orders` | 发布单列表（可按 `region_code` 过滤） |
+| POST | `/api/green/release/orders` | 创建发布单 |
+| GET | `/api/green/release/orders/{id}` | 发布单详情（阶段/切片/迁移/断点） |
+| POST | `/api/green/release/orders/{id}/confirm-attachment` | 第一步：确认正式审定附件 |
+| POST | `/api/green/release/orders/{id}/check-slices` | 第二步：核对切片责任、拆分重叠区 |
+| POST | `/api/green/release/orders/{id}/publish` | 第三步：执行发布（幂等、可续发） |
+| POST | `/api/green/release/orders/{id}/withdraw` | 撤回发布并恢复旧图 |
+| GET | `/api/green/map/todos` | 地图入口：当前生效版本的切片待办 |
+| POST | `/api/green/map/entry` | 地图入口按版本键命中/创建同一张发布单 |
+
+发布规则的端到端验证在 `backend/test_release_flow.py`（含并发幂等、断线续发、
+失败复位、事务原子性、撤回恢复等 51 项）：
+
+```bash
+cd backend && PYTHONPATH=. python3 test_release_flow.py
+```
